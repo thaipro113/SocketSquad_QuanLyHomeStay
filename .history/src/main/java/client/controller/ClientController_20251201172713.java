@@ -1,0 +1,116 @@
+package client.controller;
+
+import client.network.SocketClient;
+import common.Payload;
+import common.models.Invoice;
+import common.models.Room;
+import common.models.Tenant;
+import common.models.User;
+
+import java.io.IOException;
+import java.util.List;
+
+public class ClientController {
+    private SocketClient socketClient;
+
+    public ClientController() {
+        this.socketClient = new SocketClient("localhost", 12345);
+    }
+
+    public void connect() throws IOException {
+        socketClient.connect();
+    }
+
+    public User login(String username, String password) {
+        try {
+            User user = new User(0, username, password, null);
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.LOGIN, user));
+            if (response.getAction() == Payload.Action.SUCCESS) {
+                return (User) response.getData();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public List<Room> getRooms() {
+        try {
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.GET_ROOMS, null));
+            if (response.getAction() == Payload.Action.SUCCESS) {
+                return (List<Room>) response.getData();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public boolean addRoom(Room room) {
+        try {
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.ADD_ROOM, room));
+            return response.getAction() == Payload.Action.SUCCESS;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public List<Tenant> getTenants() {
+        try {
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.GET_TENANTS, null));
+            if (response.getAction() == Payload.Action.SUCCESS) {
+                return (List<Tenant>) response.getData();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public boolean addTenant(Tenant tenant) {
+        try {
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.ADD_TENANT, tenant));
+            return response.getAction() == Payload.Action.SUCCESS;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public Invoice calculateCost(Invoice invoiceData) {
+        try {
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.CALCULATE_COST, invoiceData));
+            if (response.getAction() == Payload.Action.SUCCESS) {
+                return (Invoice) response.getData();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public List<Invoice> getInvoices() {
+        try {
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.GET_INVOICES, null));
+            if (response.getAction() == Payload.Action.SUCCESS) {
+                return (List<Invoice>) response.getData();
+            }
+            public String uploadFile(String fileName, byte[] fileBytes) {
+        try {
+            Object[] fileData = new Object[]{fileName, fileBytes};
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.UPLOAD_FILE, fileData));
+            if (response.getAction() == Payload.Action.SUCCESS) {
+                return (String) response.getData(); // Returns the server path
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+} catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+}
