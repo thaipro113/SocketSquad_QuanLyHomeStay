@@ -67,7 +67,7 @@ public class LoginView extends JFrame {
         btnLogin = new JButton("Đăng Nhập");
         btnLogin.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btnLogin.setBackground(new Color(50, 150, 50));
-        btnLogin.setForeground(Color.WHITE);
+        btnLogin.setForeground(Color.BLACK);
         btnLogin.setFocusPainted(false);
         btnLogin.addActionListener(this::onLogin);
 
