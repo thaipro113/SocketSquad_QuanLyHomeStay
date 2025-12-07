@@ -22,6 +22,7 @@ public class Payload implements Serializable {
         UPLOAD_FILE,
         DOWNLOAD_FILE,
         GET_IMAGE,
+        CHECKOUT_ROOM,
         SUCCESS,
         FAILURE
     }

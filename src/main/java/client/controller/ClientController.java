@@ -176,4 +176,14 @@ public class ClientController {
         }
         return null;
     }
+
+    public boolean checkoutRoom(int roomId) {
+        try {
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.CHECKOUT_ROOM, roomId));
+            return response.getAction() == Payload.Action.SUCCESS;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }
