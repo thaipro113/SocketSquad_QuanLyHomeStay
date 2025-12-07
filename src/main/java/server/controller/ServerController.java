@@ -161,6 +161,35 @@ public class ServerController {
                         return new Payload(Payload.Action.FAILURE, null, "Lỗi đọc file: " + e.getMessage());
                     }
 
+                case CHECKOUT_ROOM:
+                    int checkoutRoomId = (int) request.getData();
+                    // Lấy thông tin phòng hiện tại
+                    List<Room> allRooms = roomDAO.getAllRooms();
+                    Room roomToCheckout = null;
+                    for (Room r : allRooms) {
+                        if (r.getId() == checkoutRoomId) {
+                            roomToCheckout = r;
+                            break;
+                        }
+                    }
+                    
+                    if (roomToCheckout == null) {
+                        return new Payload(Payload.Action.FAILURE, null, "Không tìm thấy phòng");
+                    }
+                    
+                    // Kiểm tra phòng có đang được thuê không
+                    if (!"OCCUPIED".equals(roomToCheckout.getStatus())) {
+                        return new Payload(Payload.Action.FAILURE, null, "Phòng này không đang được thuê");
+                    }
+                    
+                    // Cập nhật trạng thái phòng thành AVAILABLE
+                    roomToCheckout.setStatus("AVAILABLE");
+                    if (roomDAO.updateRoom(roomToCheckout)) {
+                        return new Payload(Payload.Action.SUCCESS, null, "Trả phòng thành công");
+                    } else {
+                        return new Payload(Payload.Action.FAILURE, null, "Cập nhật trạng thái phòng thất bại");
+                    }
+
                 default:
                     return new Payload(Payload.Action.FAILURE, null, "Hành động không xác định");
             }

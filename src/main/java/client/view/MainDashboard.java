@@ -22,6 +22,11 @@ public class MainDashboard extends JFrame {
     // Room Components
     private JTable roomTable;
     private DefaultTableModel roomModel;
+    private JButton btnCheckout;
+    private JLabel lblAvailableCount;
+    private JLabel lblOccupiedCount;
+    private JLabel lblReservedCount;
+    private JLabel lblTotalCount;
 
     // Tenant Components
     private JTable tenantTable;
@@ -83,6 +88,10 @@ public class MainDashboard extends JFrame {
         panel.setBackground(Color.WHITE);
         panel.setBorder(new EmptyBorder(15, 15, 15, 15));
 
+        // Panel thống kê
+        JPanel statsPanel = createStatisticsPanel();
+        panel.add(statsPanel, BorderLayout.NORTH);
+
         // Toolbar hiện đại
         JToolBar toolBar = new JToolBar();
         toolBar.setFloatable(false);
@@ -93,11 +102,14 @@ public class MainDashboard extends JFrame {
         JButton btnAdd = createStyledButton("Thêm Phòng", PRIMARY);
         JButton btnEdit = createStyledButton("Sửa Phòng", PRIMARY);
         JButton btnDelete = createStyledButton("Xóa Phòng", new Color(220, 53, 69));
+        btnCheckout = createStyledButton("Trả Phòng", new Color(255, 152, 0));
 
         btnRefresh.addActionListener(e -> loadRooms());
         btnAdd.addActionListener(e -> showAddRoomDialog());
         btnEdit.addActionListener(e -> showEditRoomDialog());
         btnDelete.addActionListener(e -> deleteRoom());
+        btnCheckout.addActionListener(e -> checkoutRoom());
+        btnCheckout.setEnabled(false); // Mặc định disable
 
         toolBar.add(btnRefresh);
         toolBar.addSeparator(new Dimension(10, 0));
@@ -106,6 +118,8 @@ public class MainDashboard extends JFrame {
         toolBar.add(btnEdit);
         toolBar.addSeparator(new Dimension(10, 0));
         toolBar.add(btnDelete);
+        toolBar.addSeparator(new Dimension(10, 0));
+        toolBar.add(btnCheckout);
 
         // Table
         String[] columns = { "ID", "Tên Phòng", "Trạng Thái", "Giá", "Hình Ảnh" };
@@ -131,6 +145,19 @@ public class MainDashboard extends JFrame {
         roomTable.setSelectionBackground(HEADER_COLOR);
         roomTable.setSelectionForeground(Color.BLACK);
         roomTable.getColumnModel().getColumn(4).setCellRenderer(new ImageRenderer());
+        
+        // Thêm listener để enable/disable nút Trả phòng khi chọn phòng
+        roomTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                int selectedRow = roomTable.getSelectedRow();
+                if (selectedRow >= 0) {
+                    String status = (String) roomModel.getValueAt(selectedRow, 2);
+                    btnCheckout.setEnabled("ĐANG THUÊ".equals(status));
+                } else {
+                    btnCheckout.setEnabled(false);
+                }
+            }
+        });
 
         // Zebra striping
         roomTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
@@ -145,11 +172,69 @@ public class MainDashboard extends JFrame {
             }
         });
 
-        panel.add(toolBar, BorderLayout.NORTH);
-        panel.add(new JScrollPane(roomTable), BorderLayout.CENTER);
+        JPanel contentPanel = new JPanel(new BorderLayout());
+        contentPanel.add(toolBar, BorderLayout.NORTH);
+        contentPanel.add(new JScrollPane(roomTable), BorderLayout.CENTER);
+        
+        panel.add(contentPanel, BorderLayout.CENTER);
 
         loadRooms();
         return panel;
+    }
+
+    private JPanel createStatisticsPanel() {
+        JPanel statsPanel = new JPanel(new GridLayout(1, 4, 15, 0));
+        statsPanel.setBackground(Color.WHITE);
+        statsPanel.setBorder(new EmptyBorder(0, 0, 15, 0));
+
+        // Card Phòng Trống
+        Object[] availableResult = createStatCard("Phòng Trống", "0", new Color(76, 175, 80), new Color(232, 247, 233));
+        lblAvailableCount = (JLabel) availableResult[1];
+        statsPanel.add((JPanel) availableResult[0]);
+
+        // Card Đang Sử Dụng
+        Object[] occupiedResult = createStatCard("Đang Sử Dụng", "0", new Color(244, 67, 54), new Color(255, 235, 238));
+        lblOccupiedCount = (JLabel) occupiedResult[1];
+        statsPanel.add((JPanel) occupiedResult[0]);
+
+        // Card Đặt Trước
+        Object[] reservedResult = createStatCard("Đặt Trước", "0", new Color(255, 152, 0), new Color(255, 243, 224));
+        lblReservedCount = (JLabel) reservedResult[1];
+        statsPanel.add((JPanel) reservedResult[0]);
+
+        // Card Tổng Số Phòng
+        Object[] totalResult = createStatCard("Tổng Số Phòng", "0", PRIMARY, HEADER_COLOR);
+        lblTotalCount = (JLabel) totalResult[1];
+        statsPanel.add((JPanel) totalResult[0]);
+
+        return statsPanel;
+    }
+
+    private Object[] createStatCard(String title, String value, Color titleColor, Color bgColor) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBackground(bgColor);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(titleColor.getRed(), titleColor.getGreen(), titleColor.getBlue(), 100), 1),
+                new EmptyBorder(15, 20, 15, 20)
+        ));
+
+        // Title
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        titleLabel.setForeground(new Color(titleColor.getRed(), titleColor.getGreen(), titleColor.getBlue()));
+        titleLabel.setHorizontalAlignment(SwingConstants.LEFT);
+        card.add(titleLabel, BorderLayout.NORTH);
+
+        // Value
+        JPanel valuePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        valuePanel.setBackground(bgColor);
+        JLabel valueLabel = new JLabel(value);
+        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 32));
+        valueLabel.setForeground(titleColor);
+        valuePanel.add(valueLabel);
+        card.add(valuePanel, BorderLayout.CENTER);
+
+        return new Object[] { card, valueLabel };
     }
 
     private JPanel createTenantPanel() {
@@ -311,6 +396,43 @@ public class MainDashboard extends JFrame {
                 });
             }
         }
+        updateRoomStatistics(rooms);
+    }
+
+    private void updateRoomStatistics(List<Room> rooms) {
+        if (lblAvailableCount == null || lblOccupiedCount == null || 
+            lblReservedCount == null || lblTotalCount == null) {
+            return; // Labels chưa được khởi tạo
+        }
+
+        if (rooms == null) {
+            lblAvailableCount.setText("0");
+            lblOccupiedCount.setText("0");
+            lblReservedCount.setText("0");
+            lblTotalCount.setText("0");
+            return;
+        }
+
+        int available = 0;
+        int occupied = 0;
+        int reserved = 0;
+        int total = rooms.size();
+
+        for (Room r : rooms) {
+            String status = r.getStatus();
+            if ("AVAILABLE".equals(status)) {
+                available++;
+            } else if ("OCCUPIED".equals(status)) {
+                occupied++;
+            } else if ("RESERVED".equals(status)) {
+                reserved++;
+            }
+        }
+
+        lblAvailableCount.setText(String.valueOf(available));
+        lblOccupiedCount.setText(String.valueOf(occupied));
+        lblReservedCount.setText(String.valueOf(reserved));
+        lblTotalCount.setText(String.valueOf(total));
     }
 
     private void loadTenants() {
@@ -460,6 +582,39 @@ public class MainDashboard extends JFrame {
             if (controller.deleteRoom(id)) {
                 JOptionPane.showMessageDialog(this, "Xóa thành công!");
                 loadRooms();
+            }
+        }
+    }
+
+    private void checkoutRoom() {
+        int row = roomTable.getSelectedRow();
+        if (row == -1) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn phòng!");
+            return;
+        }
+
+        String status = (String) roomModel.getValueAt(row, 2);
+        if (!"ĐANG THUÊ".equals(status)) {
+            JOptionPane.showMessageDialog(this, "Chỉ có thể trả phòng đang được thuê!", "Lỗi", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int id = (int) roomModel.getValueAt(row, 0);
+        String roomName = (String) roomModel.getValueAt(row, 1);
+        
+        int confirm = JOptionPane.showConfirmDialog(this, 
+                "Bạn có chắc muốn trả phòng \"" + roomName + "\" (ID: " + id + ")?", 
+                "Xác nhận trả phòng",
+                JOptionPane.YES_NO_OPTION);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            if (controller.checkoutRoom(id)) {
+                JOptionPane.showMessageDialog(this, "Trả phòng thành công! Phòng đã được cập nhật trạng thái.", 
+                        "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                loadRooms();
+            } else {
+                JOptionPane.showMessageDialog(this, "Trả phòng thất bại. Vui lòng thử lại.", 
+                        "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -643,12 +798,27 @@ public class MainDashboard extends JFrame {
         }
 
         int tenantId = (int) tenantModel.getValueAt(selectedRow, 0);
+        int roomId = (int) tenantModel.getValueAt(selectedRow, 4); // Lấy roomId từ cột thứ 5 (index 4)
+        
         int confirm = JOptionPane.showConfirmDialog(this, "Bạn có chắc muốn xóa khách này?", "Xác nhận xóa",
                 JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             if (controller.deleteTenant(tenantId)) {
-                JOptionPane.showMessageDialog(this, "Xóa khách thành công!");
+                // Cập nhật trạng thái phòng về AVAILABLE
+                List<Room> rooms = controller.getRooms();
+                if (rooms != null) {
+                    for (Room r : rooms) {
+                        if (r.getId() == roomId) {
+                            r.setStatus("AVAILABLE");
+                            controller.updateRoom(r);
+                            break;
+                        }
+                    }
+                }
+                
+                JOptionPane.showMessageDialog(this, "Xóa khách thành công! Phòng " + roomId + " đã được cập nhật trạng thái.");
                 loadTenants();
+                loadRooms(); // Reload để cập nhật thống kê
             } else {
                 JOptionPane.showMessageDialog(this, "Xóa khách thất bại.");
             }

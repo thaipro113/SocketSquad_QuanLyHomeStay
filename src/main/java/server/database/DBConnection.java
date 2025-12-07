@@ -8,7 +8,7 @@ public class DBConnection {
     // TODO: Update these credentials to match your SQL Server configuration
     private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=HomestayDB;encrypt=true;trustServerCertificate=true";
     private static final String USER = "sa";
-    private static final String PASSWORD = "12345";
+    private static final String PASSWORD = "123456";
 
     public static Connection getConnection() throws SQLException {
         try {
