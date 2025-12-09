@@ -23,6 +23,8 @@ public class Payload implements Serializable {
         DOWNLOAD_FILE,
         GET_IMAGE,
         CHECKOUT_ROOM,
+        CHECKIN_ROOM,
+        GET_TENANT_HISTORY,
         SUCCESS,
         FAILURE
     }

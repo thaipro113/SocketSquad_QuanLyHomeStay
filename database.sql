@@ -54,6 +54,18 @@ CREATE TABLE Invoices (
     FOREIGN KEY (room_id) REFERENCES Rooms(id)
 );
 
+-- Tenant History Table (Lịch sử khách thuê)
+CREATE TABLE TenantHistory (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    name NVARCHAR(100) NOT NULL,
+    id_card VARCHAR(20) NOT NULL,
+    phone VARCHAR(15),
+    room_id INT,
+    contract_path VARCHAR(255),
+    checkout_date DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (room_id) REFERENCES Rooms(id) ON DELETE SET NULL
+);
+
 -- Insert Default Admin
 INSERT INTO Users (username, password, role) VALUES ('admin', 'admin123', 'ADMIN');
 

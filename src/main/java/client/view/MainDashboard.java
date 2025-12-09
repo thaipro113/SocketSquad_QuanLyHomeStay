@@ -5,6 +5,7 @@ import com.formdev.flatlaf.FlatLightLaf;
 import common.models.Invoice;
 import common.models.Room;
 import common.models.Tenant;
+import common.models.TenantHistory;
 import common.models.User;
 
 import javax.swing.*;
@@ -23,6 +24,7 @@ public class MainDashboard extends JFrame {
     private JTable roomTable;
     private DefaultTableModel roomModel;
     private JButton btnCheckout;
+    private JButton btnCheckin;
     private JLabel lblAvailableCount;
     private JLabel lblOccupiedCount;
     private JLabel lblReservedCount;
@@ -35,6 +37,10 @@ public class MainDashboard extends JFrame {
     // Invoice Components
     private JTable invoiceTable;
     private DefaultTableModel invoiceModel;
+
+    // History Components
+    private JTable historyTable;
+    private DefaultTableModel historyModel;
 
     // Màu sắc chủ đạo
     private final Color PRIMARY = new Color(46, 125, 50);
@@ -79,6 +85,7 @@ public class MainDashboard extends JFrame {
         tabbedPane.addTab("   Quản Lý Phòng   ", new ImageIcon(), createRoomPanel());
         tabbedPane.addTab("   Khách Thuê   ", new ImageIcon(), createTenantPanel());
         tabbedPane.addTab("   Hóa Đơn & Chi Phí   ", new ImageIcon(), createInvoicePanel());
+        tabbedPane.addTab("   Lịch Sử   ", new ImageIcon(), createHistoryPanel());
 
         add(tabbedPane);
     }
@@ -103,13 +110,16 @@ public class MainDashboard extends JFrame {
         JButton btnEdit = createStyledButton("Sửa Phòng", PRIMARY);
         JButton btnDelete = createStyledButton("Xóa Phòng", new Color(220, 53, 69));
         btnCheckout = createStyledButton("Trả Phòng", new Color(255, 152, 0));
+        btnCheckin = createStyledButton("Nhận Phòng", new Color(33, 150, 243));
 
         btnRefresh.addActionListener(e -> loadRooms());
         btnAdd.addActionListener(e -> showAddRoomDialog());
         btnEdit.addActionListener(e -> showEditRoomDialog());
         btnDelete.addActionListener(e -> deleteRoom());
         btnCheckout.addActionListener(e -> checkoutRoom());
+        btnCheckin.addActionListener(e -> checkinRoom());
         btnCheckout.setEnabled(false); // Mặc định disable
+        btnCheckin.setEnabled(false); // Mặc định disable
 
         toolBar.add(btnRefresh);
         toolBar.addSeparator(new Dimension(10, 0));
@@ -120,6 +130,8 @@ public class MainDashboard extends JFrame {
         toolBar.add(btnDelete);
         toolBar.addSeparator(new Dimension(10, 0));
         toolBar.add(btnCheckout);
+        toolBar.addSeparator(new Dimension(10, 0));
+        toolBar.add(btnCheckin);
 
         // Table
         String[] columns = { "ID", "Tên Phòng", "Trạng Thái", "Giá", "Hình Ảnh" };
@@ -146,15 +158,17 @@ public class MainDashboard extends JFrame {
         roomTable.setSelectionForeground(Color.BLACK);
         roomTable.getColumnModel().getColumn(4).setCellRenderer(new ImageRenderer());
         
-        // Thêm listener để enable/disable nút Trả phòng khi chọn phòng
+        // Thêm listener để enable/disable nút Trả phòng và Nhận phòng khi chọn phòng
         roomTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 int selectedRow = roomTable.getSelectedRow();
                 if (selectedRow >= 0) {
                     String status = (String) roomModel.getValueAt(selectedRow, 2);
                     btnCheckout.setEnabled("ĐANG THUÊ".equals(status));
+                    btnCheckin.setEnabled("ĐÃ ĐẶT".equals(status));
                 } else {
                     btnCheckout.setEnabled(false);
+                    btnCheckin.setEnabled(false);
                 }
             }
         });
@@ -321,6 +335,38 @@ public class MainDashboard extends JFrame {
         return panel;
     }
 
+    private JPanel createHistoryPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+        JToolBar toolBar = new JToolBar();
+        toolBar.setFloatable(false);
+        toolBar.setBackground(Color.WHITE);
+        toolBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 1, new Color(220, 220, 220)));
+
+        JButton btnRefresh = createStyledButton("Làm mới", PRIMARY);
+
+        btnRefresh.addActionListener(e -> loadHistory());
+
+        toolBar.add(btnRefresh);
+
+        String[] columns = { "ID", "Họ Tên", "CMND/CCCD", "SĐT", "ID Phòng", "Ngày Trả Phòng" };
+        historyModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int r, int c) {
+                return false;
+            }
+        };
+        historyTable = new JTable(historyModel);
+        styleTable(historyTable);
+
+        panel.add(toolBar, BorderLayout.NORTH);
+        panel.add(new JScrollPane(historyTable), BorderLayout.CENTER);
+        loadHistory();
+        return panel;
+    }
+
     private void styleTable(JTable table) {
         table.setRowHeight(50);
         table.setShowGrid(false);
@@ -456,6 +502,28 @@ public class MainDashboard extends JFrame {
                         i.getMonth() + "/" + i.getYear(),
                         String.format("%,.0f VNĐ", i.getTotalAmount()),
                         i.getStatus()
+                });
+            }
+        }
+    }
+
+    private void loadHistory() {
+        List<TenantHistory> history = controller.getTenantHistory();
+        historyModel.setRowCount(0);
+        if (history != null) {
+            for (TenantHistory t : history) {
+                String checkoutDateStr = "";
+                if (t.getCheckoutDate() != null) {
+                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+                    checkoutDateStr = sdf.format(t.getCheckoutDate());
+                }
+                historyModel.addRow(new Object[] { 
+                    t.getId(), 
+                    t.getName(), 
+                    t.getIdCard(), 
+                    t.getPhone(), 
+                    t.getRoomId(),
+                    checkoutDateStr
                 });
             }
         }
@@ -603,17 +671,55 @@ public class MainDashboard extends JFrame {
         String roomName = (String) roomModel.getValueAt(row, 1);
         
         int confirm = JOptionPane.showConfirmDialog(this, 
-                "Bạn có chắc muốn trả phòng \"" + roomName + "\" (ID: " + id + ")?", 
+                "Bạn có chắc muốn trả phòng \"" + roomName + "\" (ID: " + id + ")?\n" +
+                "Khách thuê sẽ được lưu vào lịch sử và xóa khỏi danh sách khách thuê.", 
                 "Xác nhận trả phòng",
                 JOptionPane.YES_NO_OPTION);
         
         if (confirm == JOptionPane.YES_OPTION) {
             if (controller.checkoutRoom(id)) {
-                JOptionPane.showMessageDialog(this, "Trả phòng thành công! Phòng đã được cập nhật trạng thái.", 
+                JOptionPane.showMessageDialog(this, "Trả phòng thành công!\n" +
+                        "Khách đã được lưu vào lịch sử và phòng đã được cập nhật trạng thái.", 
+                        "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                loadRooms();
+                loadTenants();
+                loadHistory();// Reload để cập nhật danh sách khách (khách đã bị xóa)
+            } else {
+                JOptionPane.showMessageDialog(this, "Trả phòng thất bại. Vui lòng thử lại.", 
+                        "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void checkinRoom() {
+        int row = roomTable.getSelectedRow();
+        if (row == -1) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn phòng!");
+            return;
+        }
+
+        String status = (String) roomModel.getValueAt(row, 2);
+        if (!"ĐÃ ĐẶT".equals(status)) {
+            JOptionPane.showMessageDialog(this, "Chỉ có thể nhận phòng đang được đặt trước!", "Lỗi", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int id = (int) roomModel.getValueAt(row, 0);
+        String roomName = (String) roomModel.getValueAt(row, 1);
+        
+        int confirm = JOptionPane.showConfirmDialog(this, 
+                "Bạn có chắc muốn nhận phòng \"" + roomName + "\" (ID: " + id + ")?\n" +
+                "Trạng thái phòng sẽ chuyển từ ĐÃ ĐẶT sang ĐANG THUÊ.", 
+                "Xác nhận nhận phòng",
+                JOptionPane.YES_NO_OPTION);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            if (controller.checkinRoom(id)) {
+                JOptionPane.showMessageDialog(this, "Nhận phòng thành công! Phòng đã được cập nhật trạng thái.", 
                         "Thành công", JOptionPane.INFORMATION_MESSAGE);
                 loadRooms();
             } else {
-                JOptionPane.showMessageDialog(this, "Trả phòng thất bại. Vui lòng thử lại.", 
+                JOptionPane.showMessageDialog(this, "Nhận phòng thất bại. Vui lòng thử lại.", 
                         "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
         }
