@@ -4,10 +4,12 @@ import common.Payload;
 import common.models.Invoice;
 import common.models.Room;
 import common.models.Tenant;
+import common.models.TenantHistory;
 import common.models.User;
 import server.model.InvoiceDAO;
 import server.model.RoomDAO;
 import server.model.TenantDAO;
+import server.model.TenantHistoryDAO;
 import server.model.UserDAO;
 
 import java.io.File;
@@ -20,12 +22,14 @@ public class ServerController {
     private UserDAO userDAO;
     private RoomDAO roomDAO;
     private TenantDAO tenantDAO;
+    private TenantHistoryDAO tenantHistoryDAO;
     private InvoiceDAO invoiceDAO;
 
     public ServerController() {
         this.userDAO = new UserDAO();
         this.roomDAO = new RoomDAO();
         this.tenantDAO = new TenantDAO();
+        this.tenantHistoryDAO = new TenantHistoryDAO();
         this.invoiceDAO = new InvoiceDAO();
     }
 
@@ -182,6 +186,28 @@ public class ServerController {
                         return new Payload(Payload.Action.FAILURE, null, "Phòng này không đang được thuê");
                     }
                     
+                    // Tìm khách thuê phòng này
+                    List<Tenant> allTenants = tenantDAO.getAllTenants();
+                    Tenant tenantToCheckout = null;
+                    for (Tenant t : allTenants) {
+                        if (t.getRoomId() == checkoutRoomId) {
+                            tenantToCheckout = t;
+                            break;
+                        }
+                    }
+                    
+                    // Lưu khách vào lịch sử trước khi xóa
+                    if (tenantToCheckout != null) {
+                        if (!tenantHistoryDAO.addToHistory(tenantToCheckout)) {
+                            return new Payload(Payload.Action.FAILURE, null, "Lỗi khi lưu vào lịch sử");
+                        }
+                        
+                        // Xóa khách khỏi bảng Tenants
+                        if (!tenantDAO.deleteTenant(tenantToCheckout.getId())) {
+                            return new Payload(Payload.Action.FAILURE, null, "Lỗi khi xóa khách");
+                        }
+                    }
+                    
                     // Cập nhật trạng thái phòng thành AVAILABLE
                     roomToCheckout.setStatus("AVAILABLE");
                     if (roomDAO.updateRoom(roomToCheckout)) {
@@ -189,6 +215,39 @@ public class ServerController {
                     } else {
                         return new Payload(Payload.Action.FAILURE, null, "Cập nhật trạng thái phòng thất bại");
                     }
+
+                case CHECKIN_ROOM:
+                    int checkinRoomId = (int) request.getData();
+                    // Lấy thông tin phòng hiện tại
+                    List<Room> allRoomsForCheckin = roomDAO.getAllRooms();
+                    Room roomToCheckin = null;
+                    for (Room r : allRoomsForCheckin) {
+                        if (r.getId() == checkinRoomId) {
+                            roomToCheckin = r;
+                            break;
+                        }
+                    }
+                    
+                    if (roomToCheckin == null) {
+                        return new Payload(Payload.Action.FAILURE, null, "Không tìm thấy phòng");
+                    }
+                    
+                    // Kiểm tra phòng có đang được đặt trước không
+                    if (!"RESERVED".equals(roomToCheckin.getStatus())) {
+                        return new Payload(Payload.Action.FAILURE, null, "Phòng này không đang được đặt trước");
+                    }
+                    
+                    // Cập nhật trạng thái phòng thành OCCUPIED
+                    roomToCheckin.setStatus("OCCUPIED");
+                    if (roomDAO.updateRoom(roomToCheckin)) {
+                        return new Payload(Payload.Action.SUCCESS, null, "Nhận phòng thành công");
+                    } else {
+                        return new Payload(Payload.Action.FAILURE, null, "Cập nhật trạng thái phòng thất bại");
+                    }
+
+                case GET_TENANT_HISTORY:
+                    List<TenantHistory> history = tenantHistoryDAO.getAllHistory();
+                    return new Payload(Payload.Action.SUCCESS, history);
 
                 default:
                     return new Payload(Payload.Action.FAILURE, null, "Hành động không xác định");

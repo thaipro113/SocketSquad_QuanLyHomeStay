@@ -5,6 +5,7 @@ import common.Payload;
 import common.models.Invoice;
 import common.models.Room;
 import common.models.Tenant;
+import common.models.TenantHistory;
 import common.models.User;
 
 import java.io.IOException;
@@ -185,5 +186,27 @@ public class ClientController {
             e.printStackTrace();
             return false;
         }
+    }
+
+    public boolean checkinRoom(int roomId) {
+        try {
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.CHECKIN_ROOM, roomId));
+            return response.getAction() == Payload.Action.SUCCESS;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public List<TenantHistory> getTenantHistory() {
+        try {
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.GET_TENANT_HISTORY, null));
+            if (response.getAction() == Payload.Action.SUCCESS) {
+                return (List<TenantHistory>) response.getData();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
