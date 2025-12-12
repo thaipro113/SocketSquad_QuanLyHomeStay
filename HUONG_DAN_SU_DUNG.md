@@ -64,11 +64,34 @@ java -cp ".;libs/*" client.ClientApp
 -   Nhấn **Add Tenant**.
 -   Nhập thông tin khách và **Room ID** (ID của phòng khách thuê).
 
-### Tính tiền điện nước (Invoices)
--   Vào tab **Invoices**.
--   Nhấn **Calculate Cost**.
--   Nhập `Room ID`, Tháng, Năm, Số điện (kWh), Số nước (m3).
--   Hệ thống sẽ tự động tính tổng tiền dựa trên đơn giá (được cấu hình trong DB).
+### Quản lý Hóa Đơn & Trả Phòng (Checkout)
+-   **Trả Phòng**:
+    -   Vào tab **Quản Lý Phòng**.
+    -   Chọn một phòng đang ở trạng thái **ĐANG THUÊ** (OCCUPIED).
+    -   Nhấn nút **Trả Phòng**.
+    -   Hệ thống sẽ hiển thị bảng tính tiền chi tiết:
+        -   **Ngày vào / Ngày ra**: Tự động lấy từ dữ liệu thuê.
+        -   **Tiền Phòng**: Tính tự động theo giờ hoặc ngày.
+        -   **Điện / Nước**: Nhập chỉ số mới (Hệ thống tự trừ đi chỉ số cũ).
+    -   Nhấn **OK** để hoàn tất. Hóa đơn sẽ được tạo với trạng thái **ĐÃ THANH TOÁN**.
+
+-   **Xem Hóa Đơn**:
+    -   Vào tab **Hóa Đơn & Chi Phí** để xem lịch sử thanh toán.
+
+### Thống Kê (Statistics)
+-   Vào tab **Thống Kê**.
+-   Xem tổng quan tình hình kinh doanh:
+    -   **Tổng Doanh Thu**: Tổng tiền từ các hóa đơn đã thanh toán.
+    -   **Khách Đang Thuê**: Số lượng khách đang ở.
+    -   **Khách Đã Trả Phòng**: Số lượng lượt khách đã phục vụ (theo hóa đơn).
+    -   **Tỉ Lệ Lấp Đầy**: Phần trăm phòng đang có khách.
+-   Nhấn nút **Cập Nhật** để làm mới số liệu.
+
+### Lịch Sử (History)
+-   Vào tab **Lịch Sử**.
+-   Xem lịch sử khách đã thuê:
+    -   **Khách Đã Thuê**: Xem chi tiết các khách đã thuê. 
+
 
 ## 5. Khắc phục lỗi thường gặp
 -   **Lỗi kết nối Database**: Kiểm tra lại username/password trong `DBConnection.java` và đảm bảo SQL Server đang chạy.
