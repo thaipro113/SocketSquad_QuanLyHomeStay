@@ -22,7 +22,9 @@ public class RoomDAO {
                         rs.getString("name"),
                         rs.getString("status"),
                         rs.getDouble("price"),
-                        rs.getString("image_path")));
+                        rs.getString("image_path"),
+                        rs.getInt("electricity_meter"),
+                        rs.getInt("water_meter")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -31,7 +33,7 @@ public class RoomDAO {
     }
 
     public boolean addRoom(Room room) {
-        String query = "INSERT INTO Rooms (name, status, price, image_path) VALUES (?, ?, ?, ?)";
+        String query = "INSERT INTO Rooms (name, status, price, image_path, electricity_meter, water_meter) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(query)) {
 
@@ -39,6 +41,8 @@ public class RoomDAO {
             stmt.setString(2, room.getStatus());
             stmt.setDouble(3, room.getPrice());
             stmt.setString(4, room.getImagePath());
+            stmt.setInt(5, room.getElectricityMeter());
+            stmt.setInt(6, room.getWaterMeter());
 
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -48,7 +52,7 @@ public class RoomDAO {
     }
 
     public boolean updateRoom(Room room) {
-        String query = "UPDATE Rooms SET name = ?, status = ?, price = ?, image_path = ? WHERE id = ?";
+        String query = "UPDATE Rooms SET name = ?, status = ?, price = ?, image_path = ?, electricity_meter = ?, water_meter = ? WHERE id = ?";
         try (Connection conn = DBConnection.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(query)) {
 
@@ -56,7 +60,9 @@ public class RoomDAO {
             stmt.setString(2, room.getStatus());
             stmt.setDouble(3, room.getPrice());
             stmt.setString(4, room.getImagePath());
-            stmt.setInt(5, room.getId());
+            stmt.setInt(5, room.getElectricityMeter());
+            stmt.setInt(6, room.getWaterMeter());
+            stmt.setInt(7, room.getId());
 
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {

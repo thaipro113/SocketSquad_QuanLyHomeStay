@@ -179,13 +179,33 @@ public class ClientController {
     }
 
     public boolean checkoutRoom(int roomId) {
+        // Old method kept for compatibility, usage should be updated
+        return checkoutRoom(roomId, 0, 0).getAction() == Payload.Action.SUCCESS;
+    }
+
+    public Payload checkoutRoom(int roomId, int electricityMeter, int waterMeter) {
         try {
-            Payload response = socketClient.sendRequest(new Payload(Payload.Action.CHECKOUT_ROOM, roomId));
-            return response.getAction() == Payload.Action.SUCCESS;
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("roomId", roomId);
+            data.put("electricityMeter", electricityMeter);
+            data.put("waterMeter", waterMeter);
+            return socketClient.sendRequest(new Payload(Payload.Action.CHECKOUT_ROOM, data));
         } catch (Exception e) {
             e.printStackTrace();
-            return false;
+            return new Payload(Payload.Action.FAILURE, null, "Lỗi kết nối");
         }
+    }
+
+    public java.util.Map<String, Double> getServices() {
+        try {
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.GET_SERVICES, null));
+            if (response.getAction() == Payload.Action.SUCCESS) {
+                return (java.util.Map<String, Double>) response.getData();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public boolean checkinRoom(int roomId) {
@@ -203,6 +223,18 @@ public class ClientController {
             Payload response = socketClient.sendRequest(new Payload(Payload.Action.GET_TENANT_HISTORY, null));
             if (response.getAction() == Payload.Action.SUCCESS) {
                 return (List<TenantHistory>) response.getData();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public java.util.Map<String, Object> getStatistics() {
+        try {
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.GET_STATISTICS, null));
+            if (response.getAction() == Payload.Action.SUCCESS) {
+                return (java.util.Map<String, Object>) response.getData();
             }
         } catch (Exception e) {
             e.printStackTrace();

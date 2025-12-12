@@ -23,7 +23,8 @@ public class TenantDAO {
                         rs.getString("id_card"),
                         rs.getString("phone"),
                         rs.getInt("room_id"),
-                        rs.getString("contract_path")));
+                        rs.getString("contract_path"),
+                        rs.getTimestamp("check_in_date")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -32,7 +33,7 @@ public class TenantDAO {
     }
 
     public boolean addTenant(Tenant tenant) {
-        String query = "INSERT INTO Tenants (name, id_card, phone, room_id, contract_path) VALUES (?, ?, ?, ?, ?)";
+        String query = "INSERT INTO Tenants (name, id_card, phone, room_id, contract_path, check_in_date) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(query)) {
 
@@ -45,6 +46,9 @@ public class TenantDAO {
                 stmt.setNull(4, Types.INTEGER);
             }
             stmt.setString(5, tenant.getContractPath());
+            stmt.setTimestamp(6,
+                    tenant.getCheckInDate() != null ? new java.sql.Timestamp(tenant.getCheckInDate().getTime())
+                            : new java.sql.Timestamp(System.currentTimeMillis()));
 
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {

@@ -101,7 +101,7 @@ public class ServerController {
                         return new Payload(Payload.Action.FAILURE, null, "Xóa khách thuê thất bại");
                     }
 
-                case CALCULATE_COST:
+                case CALCULATE_COST: {
                     Invoice costRequest = (Invoice) request.getData();
                     double elecPrice = invoiceDAO.getServicePrice("Electricity");
                     double waterPrice = invoiceDAO.getServicePrice("Water");
@@ -120,6 +120,7 @@ public class ServerController {
                     } else {
                         return new Payload(Payload.Action.FAILURE, null, "Tạo hóa đơn thất bại");
                     }
+                }
 
                 case GET_INVOICES:
                     List<Invoice> invoices = invoiceDAO.getAllInvoices();
@@ -165,8 +166,15 @@ public class ServerController {
                         return new Payload(Payload.Action.FAILURE, null, "Lỗi đọc file: " + e.getMessage());
                     }
 
-                case CHECKOUT_ROOM:
-                    int checkoutRoomId = (int) request.getData();
+                case CHECKOUT_ROOM: {
+                    // Data: Map<String, Object> or generic Map
+                    // Expected keys: roomId, electricityMeter, waterMeter
+                    @SuppressWarnings("unchecked")
+                    java.util.Map<String, Object> checkoutData = (java.util.Map<String, Object>) request.getData();
+                    int checkoutRoomId = (int) checkoutData.get("roomId");
+                    int newElec = (int) checkoutData.get("electricityMeter");
+                    int newWater = (int) checkoutData.get("waterMeter");
+
                     // Lấy thông tin phòng hiện tại
                     List<Room> allRooms = roomDAO.getAllRooms();
                     Room roomToCheckout = null;
@@ -176,16 +184,16 @@ public class ServerController {
                             break;
                         }
                     }
-                    
+
                     if (roomToCheckout == null) {
                         return new Payload(Payload.Action.FAILURE, null, "Không tìm thấy phòng");
                     }
-                    
+
                     // Kiểm tra phòng có đang được thuê không
                     if (!"OCCUPIED".equals(roomToCheckout.getStatus())) {
                         return new Payload(Payload.Action.FAILURE, null, "Phòng này không đang được thuê");
                     }
-                    
+
                     // Tìm khách thuê phòng này
                     List<Tenant> allTenants = tenantDAO.getAllTenants();
                     Tenant tenantToCheckout = null;
@@ -195,26 +203,121 @@ public class ServerController {
                             break;
                         }
                     }
-                    
-                    // Lưu khách vào lịch sử trước khi xóa
+
+                    // TÍNH TOÁN CHI PHÍ
+                    double totalAmount = 0;
+                    int elecUsage = 0;
+                    int waterUsage = 0;
+                    double roomCost = 0;
+
+                    // 1. Tiền Điện & Nước
+                    // Nếu công tơ mới < cũ => có thể do reset công tơ hoặc nhập sai.
+                    // Ở đây xử lý đơn giản: nếu nhỏ hơn thì coi như usage = new (reset) hoặc 0.
+                    // Tốt nhất là trust user input usage = new - old.
+                    int oldElec = roomToCheckout.getElectricityMeter();
+                    int oldWater = roomToCheckout.getWaterMeter();
+
+                    elecUsage = newElec - oldElec;
+                    if (elecUsage < 0)
+                        elecUsage = 0; // Tránh âm
+
+                    waterUsage = newWater - oldWater;
+                    if (waterUsage < 0)
+                        waterUsage = 0;
+
+                    double elecPrice = invoiceDAO.getServicePrice("Electricity");
+                    double waterPrice = invoiceDAO.getServicePrice("Water");
+                    double internetPrice = invoiceDAO.getServicePrice("Internet");
+
+                    double electricityCost = elecUsage * elecPrice;
+                    double waterCost = waterUsage * waterPrice;
+
+                    // 2. Tiền Phòng
+                    java.util.Date now = new java.util.Date();
+                    java.util.Date checkIn = null;
+                    if (tenantToCheckout != null) {
+                        checkIn = tenantToCheckout.getCheckInDate();
+                    }
+                    if (checkIn == null)
+                        checkIn = now; // Fallback
+
+                    long diffInMillies = Math.abs(now.getTime() - checkIn.getTime());
+                    long diffHours = java.util.concurrent.TimeUnit.HOURS.convert(diffInMillies,
+                            java.util.concurrent.TimeUnit.MILLISECONDS);
+                    long diffDays = java.util.concurrent.TimeUnit.DAYS.convert(diffInMillies,
+                            java.util.concurrent.TimeUnit.MILLISECONDS);
+
+                    if (diffHours < 24) {
+                        // Tính theo giờ: Giá ngày / 24 * số giờ (tối thiểu 1h)
+                        if (diffHours < 1)
+                            diffHours = 1;
+                        roomCost = (roomToCheckout.getPrice() / 24.0) * diffHours;
+                    } else {
+                        // Tính theo ngày: làm tròn lên nếu quá 12h? Hoặc tính chẵn ngày.
+                        // Logic đơn giản: tính theo ngày thực tế (làm tròn lên)
+                        if (diffDays == 0)
+                            diffDays = 1; // Tối thiểu 1 ngày nếu code logic sai
+                        // Nếu dư giờ > 0 thì +1 ngày? Hay tính lẻ?
+                        // User yêu cầu "ngày, giờ tùy theo khách".
+                        // Cách tính phổ biến: Ngày + Giờ lẻ.
+                        // Ví dụ: 1 ngày 5 giờ. = 1 * Giá ngày + 5 * (Giá ngày/24).
+                        long extraHours = diffHours % 24;
+                        roomCost = (diffDays * roomToCheckout.getPrice())
+                                + (extraHours * (roomToCheckout.getPrice() / 24.0));
+                    }
+
+                    totalAmount = roomCost + electricityCost + waterCost + internetPrice;
+
+                    // TẠO HÓA ĐƠN
+                    Invoice newInvoice = new Invoice();
+                    newInvoice.setRoomId(checkoutRoomId);
+                    java.time.LocalDate localDate = java.time.LocalDate.now();
+                    newInvoice.setMonth(localDate.getMonthValue());
+                    newInvoice.setYear(localDate.getYear());
+                    newInvoice.setElectricityUsage(elecUsage);
+                    newInvoice.setWaterUsage(waterUsage);
+                    newInvoice.setInternetFee(internetPrice);
+                    newInvoice.setTotalAmount(totalAmount);
+                    newInvoice.setStatus("PAID");
+                    newInvoice.setCreatedAt(now);
+
+                    if (!invoiceDAO.addInvoice(newInvoice)) {
+                        return new Payload(Payload.Action.FAILURE, null, "Lỗi khi tạo hóa đơn");
+                    }
+
+                    // LƯU LỊCH SỬ KHÁCH
                     if (tenantToCheckout != null) {
                         if (!tenantHistoryDAO.addToHistory(tenantToCheckout)) {
                             return new Payload(Payload.Action.FAILURE, null, "Lỗi khi lưu vào lịch sử");
                         }
-                        
                         // Xóa khách khỏi bảng Tenants
                         if (!tenantDAO.deleteTenant(tenantToCheckout.getId())) {
                             return new Payload(Payload.Action.FAILURE, null, "Lỗi khi xóa khách");
                         }
                     }
-                    
-                    // Cập nhật trạng thái phòng thành AVAILABLE
+
+                    // CẬP NHẬT PHÒNG
                     roomToCheckout.setStatus("AVAILABLE");
+                    roomToCheckout.setElectricityMeter(newElec);
+                    roomToCheckout.setWaterMeter(newWater);
+
                     if (roomDAO.updateRoom(roomToCheckout)) {
-                        return new Payload(Payload.Action.SUCCESS, null, "Trả phòng thành công");
+                        String msg = String.format(
+                                "Trả phòng thành công!\nTiền phòng: %,.0f\nĐiện: %,.0f\nNước: %,.0f\nInternet: %,.0f\nTổng cộng: %,.0f",
+                                roomCost, electricityCost, waterCost, internetPrice, totalAmount);
+                        return new Payload(Payload.Action.SUCCESS, null, msg);
                     } else {
                         return new Payload(Payload.Action.FAILURE, null, "Cập nhật trạng thái phòng thất bại");
                     }
+                }
+
+                case GET_SERVICES:
+                    // Return map of service prices
+                    java.util.Map<String, Double> prices = new java.util.HashMap<>();
+                    prices.put("Electricity", invoiceDAO.getServicePrice("Electricity"));
+                    prices.put("Water", invoiceDAO.getServicePrice("Water"));
+                    prices.put("Internet", invoiceDAO.getServicePrice("Internet"));
+                    return new Payload(Payload.Action.SUCCESS, prices);
 
                 case CHECKIN_ROOM:
                     int checkinRoomId = (int) request.getData();
@@ -227,16 +330,16 @@ public class ServerController {
                             break;
                         }
                     }
-                    
+
                     if (roomToCheckin == null) {
                         return new Payload(Payload.Action.FAILURE, null, "Không tìm thấy phòng");
                     }
-                    
+
                     // Kiểm tra phòng có đang được đặt trước không
                     if (!"RESERVED".equals(roomToCheckin.getStatus())) {
                         return new Payload(Payload.Action.FAILURE, null, "Phòng này không đang được đặt trước");
                     }
-                    
+
                     // Cập nhật trạng thái phòng thành OCCUPIED
                     roomToCheckin.setStatus("OCCUPIED");
                     if (roomDAO.updateRoom(roomToCheckin)) {
@@ -248,6 +351,41 @@ public class ServerController {
                 case GET_TENANT_HISTORY:
                     List<TenantHistory> history = tenantHistoryDAO.getAllHistory();
                     return new Payload(Payload.Action.SUCCESS, history);
+
+                case GET_STATISTICS:
+                    // 1. Revenue & Served Guests (Based on PAID Invoices)
+                    List<Invoice> allInvoices = invoiceDAO.getAllInvoices();
+                    double totalRevenue = 0;
+                    int totalServed = 0;
+                    for (Invoice inv : allInvoices) {
+                        if ("PAID".equals(inv.getStatus())) {
+                            totalRevenue += inv.getTotalAmount();
+                            totalServed++;
+                        }
+                    }
+
+                    // 2. Tenants (Active)
+                    List<Tenant> activeTenants = tenantDAO.getAllTenants();
+                    int tenantCount = activeTenants.size();
+
+                    // 3. Occupancy Rate Calculation (Internal)
+                    List<Room> allRoomsStats = roomDAO.getAllRooms();
+                    int roomCount = allRoomsStats.size();
+                    int occupiedCount = 0;
+                    for (Room r : allRoomsStats) {
+                        if ("OCCUPIED".equals(r.getStatus()))
+                            occupiedCount++;
+                    }
+
+                    java.util.Map<String, Object> stats = new java.util.HashMap<>();
+                    stats.put("totalRevenue", totalRevenue);
+                    stats.put("totalTenants", tenantCount); // Khách đang thuê
+                    stats.put("totalServed", totalServed); // Khách đã sử dụng (theo hóa đơn)
+                    stats.put("totalRooms", roomCount); // Still needed for rate calculation if client wants it, or
+                                                        // calculate rate here? Client does rate.
+                    stats.put("occupiedRooms", occupiedCount);
+
+                    return new Payload(Payload.Action.SUCCESS, stats);
 
                 default:
                     return new Payload(Payload.Action.FAILURE, null, "Hành động không xác định");

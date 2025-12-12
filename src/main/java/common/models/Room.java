@@ -10,16 +10,26 @@ public class Room implements Serializable {
     private String status; // AVAILABLE, OCCUPIED, RESERVED
     private double price;
     private String imagePath;
+    private int electricityMeter;
+    private int waterMeter;
 
     public Room() {
     }
 
-    public Room(int id, String name, String status, double price, String imagePath) {
+    public Room(int id, String name, String status, double price, String imagePath, int electricityMeter,
+            int waterMeter) {
         this.id = id;
         this.name = name;
         this.status = status;
         this.price = price;
         this.imagePath = imagePath;
+        this.electricityMeter = electricityMeter;
+        this.waterMeter = waterMeter;
+    }
+
+    // Constructor for backward compatibility (optional)
+    public Room(int id, String name, String status, double price, String imagePath) {
+        this(id, name, status, price, imagePath, 0, 0);
     }
 
     public int getId() {
@@ -60,5 +70,21 @@ public class Room implements Serializable {
 
     public void setImagePath(String imagePath) {
         this.imagePath = imagePath;
+    }
+
+    public int getElectricityMeter() {
+        return electricityMeter;
+    }
+
+    public void setElectricityMeter(int electricityMeter) {
+        this.electricityMeter = electricityMeter;
+    }
+
+    public int getWaterMeter() {
+        return waterMeter;
+    }
+
+    public void setWaterMeter(int waterMeter) {
+        this.waterMeter = waterMeter;
     }
 }

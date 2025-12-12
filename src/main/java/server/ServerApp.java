@@ -14,6 +14,10 @@ public class ServerApp {
 
     public static void main(String[] args) {
         System.out.println("Starting Homestay Server on port " + PORT + "...");
+
+        // Run database migration
+        server.utils.MigrationUtil.migrate();
+
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
