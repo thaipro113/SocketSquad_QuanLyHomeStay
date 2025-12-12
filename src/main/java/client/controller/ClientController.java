@@ -2,6 +2,7 @@ package client.controller;
 
 import client.network.SocketClient;
 import common.Payload;
+import common.models.CheckoutRequest;
 import common.models.Invoice;
 import common.models.Room;
 import common.models.Tenant;
@@ -185,6 +186,18 @@ public class ClientController {
         } catch (Exception e) {
             e.printStackTrace();
             return false;
+        }
+    }
+
+    // ✅ METHOD MỚI: Trả phòng + Tạo hóa đơn
+    public Payload checkoutRoomWithInvoice(int roomId, int electricityUsage, int waterUsage) {
+        try {
+            CheckoutRequest request = new CheckoutRequest(roomId, electricityUsage, waterUsage);
+            Payload response = socketClient.sendRequest(new Payload(Payload.Action.CHECKOUT_WITH_INVOICE, request));
+            return response;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Payload(Payload.Action.FAILURE, null, "Lỗi kết nối: " + e.getMessage());
         }
     }
 

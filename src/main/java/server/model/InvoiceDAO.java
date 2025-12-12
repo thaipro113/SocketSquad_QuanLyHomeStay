@@ -13,8 +13,8 @@ public class InvoiceDAO {
         List<Invoice> invoices = new ArrayList<>();
         String query = "SELECT * FROM Invoices";
         try (Connection conn = DBConnection.getConnection();
-                Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
 
             while (rs.next()) {
                 invoices.add(new Invoice(
@@ -27,7 +27,12 @@ public class InvoiceDAO {
                         rs.getDouble("internet_fee"),
                         rs.getDouble("total_amount"),
                         rs.getString("status"),
-                        rs.getTimestamp("created_at")));
+                        rs.getTimestamp("created_at"),
+                        rs.getDouble("room_price"),
+                        rs.getInt("rental_days"),
+                        rs.getTimestamp("checkin_date"),
+                        rs.getTimestamp("checkout_date")
+                ));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -36,9 +41,9 @@ public class InvoiceDAO {
     }
 
     public boolean addInvoice(Invoice invoice) {
-        String query = "INSERT INTO Invoices (room_id, month, year, electricity_usage, water_usage, internet_fee, total_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String query = "INSERT INTO Invoices (room_id, month, year, electricity_usage, water_usage, internet_fee, total_amount, status, room_price, rental_days, checkin_date, checkout_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(query)) {
+             PreparedStatement stmt = conn.prepareStatement(query)) {
 
             stmt.setInt(1, invoice.getRoomId());
             stmt.setInt(2, invoice.getMonth());
@@ -48,6 +53,22 @@ public class InvoiceDAO {
             stmt.setDouble(6, invoice.getInternetFee());
             stmt.setDouble(7, invoice.getTotalAmount());
             stmt.setString(8, invoice.getStatus());
+
+            // ✅ Thêm các field mới
+            stmt.setDouble(9, invoice.getRoomPrice());
+            stmt.setInt(10, invoice.getRentalDays());
+
+            if (invoice.getCheckinDate() != null) {
+                stmt.setTimestamp(11, new Timestamp(invoice.getCheckinDate().getTime()));
+            } else {
+                stmt.setNull(11, Types.TIMESTAMP);
+            }
+
+            if (invoice.getCheckoutDate() != null) {
+                stmt.setTimestamp(12, new Timestamp(invoice.getCheckoutDate().getTime()));
+            } else {
+                stmt.setNull(12, Types.TIMESTAMP);
+            }
 
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -60,7 +81,7 @@ public class InvoiceDAO {
     public double getServicePrice(String serviceName) {
         String query = "SELECT unit_price FROM Services WHERE name = ?";
         try (Connection conn = DBConnection.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(query)) {
+             PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setString(1, serviceName);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -76,7 +97,7 @@ public class InvoiceDAO {
     public boolean deleteInvoice(int id) {
         String query = "DELETE FROM Invoices WHERE id = ?";
         try (Connection conn = DBConnection.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(query)) {
+             PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {

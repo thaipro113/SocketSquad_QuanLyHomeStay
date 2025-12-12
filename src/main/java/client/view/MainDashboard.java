@@ -2,6 +2,7 @@ package client.view;
 
 import client.controller.ClientController;
 import com.formdev.flatlaf.FlatLightLaf;
+import common.Payload;
 import common.models.Invoice;
 import common.models.Room;
 import common.models.Tenant;
@@ -13,6 +14,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.text.SimpleDateFormat;
 import java.util.List;
 
 public class MainDashboard extends JFrame {
@@ -52,7 +54,6 @@ public class MainDashboard extends JFrame {
         this.controller = controller;
         this.currentUser = user;
 
-        // Áp dụng giao diện FlatLaf hiện đại
         try {
             UIManager.setLookAndFeel(new FlatLightLaf());
         } catch (Exception ex) {
@@ -70,7 +71,6 @@ public class MainDashboard extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        // Font toàn cục
         UIManager.put("Label.font", new Font("Segoe UI", Font.PLAIN, 14));
         UIManager.put("Button.font", new Font("Segoe UI", Font.BOLD, 14));
         UIManager.put("Table.font", new Font("Segoe UI", Font.PLAIN, 14));
@@ -157,7 +157,7 @@ public class MainDashboard extends JFrame {
         roomTable.setSelectionBackground(HEADER_COLOR);
         roomTable.setSelectionForeground(Color.BLACK);
         roomTable.getColumnModel().getColumn(4).setCellRenderer(new ImageRenderer());
-        
+
         // Thêm listener để enable/disable nút Trả phòng và Nhận phòng khi chọn phòng
         roomTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -189,7 +189,7 @@ public class MainDashboard extends JFrame {
         JPanel contentPanel = new JPanel(new BorderLayout());
         contentPanel.add(toolBar, BorderLayout.NORTH);
         contentPanel.add(new JScrollPane(roomTable), BorderLayout.CENTER);
-        
+
         panel.add(contentPanel, BorderLayout.CENTER);
 
         loadRooms();
@@ -279,7 +279,7 @@ public class MainDashboard extends JFrame {
         toolBar.addSeparator(new Dimension(10, 0));
         toolBar.add(btnDelete);
 
-        String[] columns = { "ID", "Họ Tên", "CMND/CCCD", "SĐT", "ID Phòng" };
+        String[] columns = { "ID", "Họ Tên", "CMND/CCCD", "SĐT", "ID Phòng", "Ngày Bắt Đầu Thuê" };
         tenantModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -351,7 +351,7 @@ public class MainDashboard extends JFrame {
 
         toolBar.add(btnRefresh);
 
-        String[] columns = { "ID", "Họ Tên", "CMND/CCCD", "SĐT", "ID Phòng", "Ngày Trả Phòng" };
+        String[] columns = { "ID", "Họ Tên", "CMND/CCCD", "SĐT", "ID Phòng", "Ngày Bắt Đầu Thuê", "Ngày Trả Phòng" };
         historyModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -446,7 +446,7 @@ public class MainDashboard extends JFrame {
     }
 
     private void updateRoomStatistics(List<Room> rooms) {
-        if (lblAvailableCount == null || lblOccupiedCount == null || 
+        if (lblAvailableCount == null || lblOccupiedCount == null ||
             lblReservedCount == null || lblTotalCount == null) {
             return; // Labels chưa được khởi tạo
         }
@@ -485,8 +485,20 @@ public class MainDashboard extends JFrame {
         List<Tenant> tenants = controller.getTenants();
         tenantModel.setRowCount(0);
         if (tenants != null) {
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
             for (Tenant t : tenants) {
-                tenantModel.addRow(new Object[] { t.getId(), t.getName(), t.getIdCard(), t.getPhone(), t.getRoomId() });
+                String checkinDateStr = "";
+                if (t.getCheckinDate() != null) {
+                    checkinDateStr = sdf.format(t.getCheckinDate());
+                }
+                tenantModel.addRow(new Object[] {
+                        t.getId(),
+                        t.getName(),
+                        t.getIdCard(),
+                        t.getPhone(),
+                        t.getRoomId(),
+                        checkinDateStr
+                });
             }
         }
     }
@@ -511,19 +523,26 @@ public class MainDashboard extends JFrame {
         List<TenantHistory> history = controller.getTenantHistory();
         historyModel.setRowCount(0);
         if (history != null) {
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
             for (TenantHistory t : history) {
+                String checkinDateStr = "";
                 String checkoutDateStr = "";
+
+                if (t.getCheckinDate() != null) {
+                    checkinDateStr = sdf.format(t.getCheckinDate());
+                }
                 if (t.getCheckoutDate() != null) {
-                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
                     checkoutDateStr = sdf.format(t.getCheckoutDate());
                 }
-                historyModel.addRow(new Object[] { 
-                    t.getId(), 
-                    t.getName(), 
-                    t.getIdCard(), 
-                    t.getPhone(), 
-                    t.getRoomId(),
-                    checkoutDateStr
+
+                historyModel.addRow(new Object[] {
+                        t.getId(),
+                        t.getName(),
+                        t.getIdCard(),
+                        t.getPhone(),
+                        t.getRoomId(),
+                        checkinDateStr,
+                        checkoutDateStr
                 });
             }
         }
@@ -667,26 +686,105 @@ public class MainDashboard extends JFrame {
             return;
         }
 
-        int id = (int) roomModel.getValueAt(row, 0);
+        int roomId = (int) roomModel.getValueAt(row, 0);
         String roomName = (String) roomModel.getValueAt(row, 1);
-        
-        int confirm = JOptionPane.showConfirmDialog(this, 
-                "Bạn có chắc muốn trả phòng \"" + roomName + "\" (ID: " + id + ")?\n" +
-                "Khách thuê sẽ được lưu vào lịch sử và xóa khỏi danh sách khách thuê.", 
-                "Xác nhận trả phòng",
-                JOptionPane.YES_NO_OPTION);
-        
-        if (confirm == JOptionPane.YES_OPTION) {
-            if (controller.checkoutRoom(id)) {
-                JOptionPane.showMessageDialog(this, "Trả phòng thành công!\n" +
-                        "Khách đã được lưu vào lịch sử và phòng đã được cập nhật trạng thái.", 
-                        "Thành công", JOptionPane.INFORMATION_MESSAGE);
-                loadRooms();
-                loadTenants();
-                loadHistory();// Reload để cập nhật danh sách khách (khách đã bị xóa)
-            } else {
-                JOptionPane.showMessageDialog(this, "Trả phòng thất bại. Vui lòng thử lại.", 
-                        "Lỗi", JOptionPane.ERROR_MESSAGE);
+
+        //TẠO DIALOG NHẬP SỐ ĐIỆN/NƯỚC
+        JTextField electricField = new JTextField("0");
+        JTextField waterField = new JTextField("0");
+
+        Object[] message = {
+                "Phòng: " + roomName + " (ID: " + roomId + ")",
+                " ",
+                "Số điện (kWh):", electricField,
+                "Số nước (m³):", waterField
+        };
+
+        int option = JOptionPane.showConfirmDialog(
+                this,
+                message,
+                "Trả Phòng & Tạo Hóa Đơn",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
+        );
+
+        if (option == JOptionPane.OK_OPTION) {
+            try {
+                int electric = Integer.parseInt(electricField.getText().trim());
+                int water = Integer.parseInt(waterField.getText().trim());
+
+                if (electric < 0 || water < 0) {
+                    JOptionPane.showMessageDialog(this, "Số điện và nước phải >= 0!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                // ✅ GỌI API MỚI
+                Payload response = controller.checkoutRoomWithInvoice(roomId, electric, water);
+
+                if (response.getAction() == Payload.Action.SUCCESS) {
+                    Invoice invoice = (Invoice) response.getData();
+
+                    // ✅ HIỂN THỊ CHI TIẾT HÓA ĐƠN
+                    SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+                    String invoiceDetails = String.format(
+                            "✅ TRẢ PHÒNG THÀNH CÔNG!\n\n" +
+                                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                                    "📋 CHI TIẾT HÓA ĐƠN\n" +
+                                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                                    "🏠 Phòng: %s (ID: %d)\n" +
+                                    "📅 Check-in: %s\n" +
+                                    "📅 Check-out: %s\n" +
+                                    "⏱️  Số ngày thuê: %d ngày\n\n" +
+                                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                                    "💰 CHI PHÍ\n" +
+                                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                                    "Tiền phòng: %,d × %,.0f = %,.0f VNĐ\n" +
+                                    "Tiền điện: %d kWh × 3,500 = %,.0f VNĐ\n" +
+                                    "Tiền nước: %d m³ × 20,000 = %,.0f VNĐ\n" +
+                                    "Tiền internet: %,.0f VNĐ\n\n" +
+                                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                                    "💵 TỔNG CỘNG: %,.0f VNĐ\n" +
+                                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+
+                            roomName,
+                            roomId,
+                            sdf.format(invoice.getCheckinDate()),
+                            sdf.format(invoice.getCheckoutDate()),
+                            invoice.getRentalDays(),
+                            invoice.getRentalDays(),
+                            invoice.getRoomPrice(),
+                            invoice.getRoomPrice() * invoice.getRentalDays(),
+                            invoice.getElectricityUsage(),
+                            invoice.getElectricityUsage() * 3500.0,
+                            invoice.getWaterUsage(),
+                            invoice.getWaterUsage() * 20000.0,
+                            invoice.getInternetFee(),
+                            invoice.getTotalAmount()
+                    );
+
+                    JOptionPane.showMessageDialog(
+                            this,
+                            invoiceDetails,
+                            "Hóa Đơn Trả Phòng",
+                            JOptionPane.INFORMATION_MESSAGE
+                    );
+
+                    loadRooms();
+                    loadTenants();
+                    loadInvoices();
+                    loadHistory();
+
+                } else {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "Lỗi: " + response.getMessage(),
+                            "Trả Phòng Thất Bại",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                }
+
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(this, "Vui lòng nhập số hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -828,6 +926,7 @@ public class MainDashboard extends JFrame {
             tenant.setPhone(phone);
             tenant.setRoomId(roomId);
             tenant.setContractPath("");
+            tenant.setCheckinDate(new java.util.Date());
 
             if (controller.addTenant(tenant)) {
                 // Cập nhật trạng thái phòng
@@ -904,7 +1003,7 @@ public class MainDashboard extends JFrame {
         }
 
         int tenantId = (int) tenantModel.getValueAt(selectedRow, 0);
-        int roomId = (int) tenantModel.getValueAt(selectedRow, 4); // Lấy roomId từ cột thứ 5 (index 4)
+        int roomId = (int) tenantModel.getValueAt(selectedRow, 4);
         
         int confirm = JOptionPane.showConfirmDialog(this, "Bạn có chắc muốn xóa khách này?", "Xác nhận xóa",
                 JOptionPane.YES_NO_OPTION);

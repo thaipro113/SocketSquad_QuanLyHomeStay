@@ -2,6 +2,7 @@ package common.models;
 
 import java.io.Serializable;
 import java.sql.Timestamp;
+import java.util.Date;
 
 public class TenantHistory implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -13,11 +14,13 @@ public class TenantHistory implements Serializable {
     private int roomId;
     private String contractPath;
     private Timestamp checkoutDate;
+    private Date checkinDate;
 
     public TenantHistory() {
     }
 
-    public TenantHistory(int id, String name, String idCard, String phone, int roomId, String contractPath, Timestamp checkoutDate) {
+    public TenantHistory(int id, String name, String idCard, String phone, int roomId,
+                         String contractPath, Timestamp checkoutDate, Date checkinDate) {
         this.id = id;
         this.name = name;
         this.idCard = idCard;
@@ -25,8 +28,10 @@ public class TenantHistory implements Serializable {
         this.roomId = roomId;
         this.contractPath = contractPath;
         this.checkoutDate = checkoutDate;
+        this.checkinDate = checkinDate;
     }
 
+    // Getters and Setters
     public int getId() {
         return id;
     }
@@ -82,5 +87,12 @@ public class TenantHistory implements Serializable {
     public void setCheckoutDate(Timestamp checkoutDate) {
         this.checkoutDate = checkoutDate;
     }
-}
 
+    public Date getCheckinDate() {
+        return checkinDate;
+    }
+
+    public void setCheckinDate(Date checkinDate) {
+        this.checkinDate = checkinDate;
+    }
+}

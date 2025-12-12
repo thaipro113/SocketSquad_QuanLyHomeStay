@@ -25,6 +25,7 @@ public class Payload implements Serializable {
         CHECKOUT_ROOM,
         CHECKIN_ROOM,
         GET_TENANT_HISTORY,
+        CHECKOUT_WITH_INVOICE,
         SUCCESS,
         FAILURE
     }

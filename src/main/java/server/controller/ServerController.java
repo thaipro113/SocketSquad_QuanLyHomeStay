@@ -1,6 +1,7 @@
 package server.controller;
 
 import common.Payload;
+import common.models.CheckoutRequest;
 import common.models.Invoice;
 import common.models.Room;
 import common.models.Tenant;
@@ -15,7 +16,10 @@ import server.model.UserDAO;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class ServerController {
 
@@ -165,6 +169,11 @@ public class ServerController {
                         return new Payload(Payload.Action.FAILURE, null, "Lỗi đọc file: " + e.getMessage());
                     }
 
+                    // ✅ CASE MỚI: Trả phòng + Tạo hóa đơn
+                case CHECKOUT_WITH_INVOICE:
+                    CheckoutRequest checkoutReq = (CheckoutRequest) request.getData();
+                    return handleCheckoutWithInvoice(checkoutReq);
+
                 case CHECKOUT_ROOM:
                     int checkoutRoomId = (int) request.getData();
                     // Lấy thông tin phòng hiện tại
@@ -176,16 +185,16 @@ public class ServerController {
                             break;
                         }
                     }
-                    
+
                     if (roomToCheckout == null) {
                         return new Payload(Payload.Action.FAILURE, null, "Không tìm thấy phòng");
                     }
-                    
+
                     // Kiểm tra phòng có đang được thuê không
                     if (!"OCCUPIED".equals(roomToCheckout.getStatus())) {
                         return new Payload(Payload.Action.FAILURE, null, "Phòng này không đang được thuê");
                     }
-                    
+
                     // Tìm khách thuê phòng này
                     List<Tenant> allTenants = tenantDAO.getAllTenants();
                     Tenant tenantToCheckout = null;
@@ -195,19 +204,19 @@ public class ServerController {
                             break;
                         }
                     }
-                    
+
                     // Lưu khách vào lịch sử trước khi xóa
                     if (tenantToCheckout != null) {
                         if (!tenantHistoryDAO.addToHistory(tenantToCheckout)) {
                             return new Payload(Payload.Action.FAILURE, null, "Lỗi khi lưu vào lịch sử");
                         }
-                        
+
                         // Xóa khách khỏi bảng Tenants
                         if (!tenantDAO.deleteTenant(tenantToCheckout.getId())) {
                             return new Payload(Payload.Action.FAILURE, null, "Lỗi khi xóa khách");
                         }
                     }
-                    
+
                     // Cập nhật trạng thái phòng thành AVAILABLE
                     roomToCheckout.setStatus("AVAILABLE");
                     if (roomDAO.updateRoom(roomToCheckout)) {
@@ -227,16 +236,16 @@ public class ServerController {
                             break;
                         }
                     }
-                    
+
                     if (roomToCheckin == null) {
                         return new Payload(Payload.Action.FAILURE, null, "Không tìm thấy phòng");
                     }
-                    
+
                     // Kiểm tra phòng có đang được đặt trước không
                     if (!"RESERVED".equals(roomToCheckin.getStatus())) {
                         return new Payload(Payload.Action.FAILURE, null, "Phòng này không đang được đặt trước");
                     }
-                    
+
                     // Cập nhật trạng thái phòng thành OCCUPIED
                     roomToCheckin.setStatus("OCCUPIED");
                     if (roomDAO.updateRoom(roomToCheckin)) {
@@ -255,6 +264,110 @@ public class ServerController {
         } catch (Exception e) {
             e.printStackTrace();
             return new Payload(Payload.Action.FAILURE, null, "Lỗi Server: " + e.getMessage());
+        }
+    }
+
+    // Xử lý trả phòng + tạo hóa đơn
+    private Payload handleCheckoutWithInvoice(CheckoutRequest request) {
+        try {
+            int roomId = request.getRoomId();
+
+            // 1. Lấy thông tin phòng
+            Room room = null;
+            List<Room> rooms = roomDAO.getAllRooms();
+            for (Room r : rooms) {
+                if (r.getId() == roomId) {
+                    room = r;
+                    break;
+                }
+            }
+
+            if (room == null) {
+                return new Payload(Payload.Action.FAILURE, null, "Không tìm thấy phòng");
+            }
+
+            if (!"OCCUPIED".equals(room.getStatus())) {
+                return new Payload(Payload.Action.FAILURE, null, "Phòng không đang được thuê");
+            }
+
+            // 2. Lấy thông tin khách thuê
+            Tenant tenant = tenantDAO.getTenantByRoomId(roomId);
+            if (tenant == null) {
+                return new Payload(Payload.Action.FAILURE, null, "Không tìm thấy khách thuê");
+            }
+
+            // 3. Tính số ngày thuê
+            Date checkinDate = tenant.getCheckinDate();
+            Date checkoutDate = new Date();
+
+            long diffInMillis = checkoutDate.getTime() - checkinDate.getTime();
+            int rentalDays = (int) TimeUnit.MILLISECONDS.toDays(diffInMillis);
+            if (rentalDays < 1) rentalDays = 1; // Tối thiểu 1 ngày
+
+            // 4. Lấy giá dịch vụ
+            double elecPrice = invoiceDAO.getServicePrice("Electricity");
+            double waterPrice = invoiceDAO.getServicePrice("Water");
+            double internetPrice = invoiceDAO.getServicePrice("Internet");
+
+            // 5. Tính tổng tiền
+            double roomCost = room.getPrice() * rentalDays;
+            double elecCost = request.getElectricityUsage() * elecPrice;
+            double waterCost = request.getWaterUsage() * waterPrice;
+            double totalAmount = roomCost + elecCost + waterCost + internetPrice;
+
+            // 6. Tạo hóa đơn
+            Invoice invoice = new Invoice();
+            invoice.setRoomId(roomId);
+
+            Calendar cal = Calendar.getInstance();
+            invoice.setMonth(cal.get(Calendar.MONTH) + 1);
+            invoice.setYear(cal.get(Calendar.YEAR));
+
+            invoice.setElectricityUsage(request.getElectricityUsage());
+            invoice.setWaterUsage(request.getWaterUsage());
+            invoice.setInternetFee(internetPrice);
+            invoice.setTotalAmount(totalAmount);
+            invoice.setStatus("UNPAID");
+
+            invoice.setRoomPrice(room.getPrice());
+            invoice.setRentalDays(rentalDays);
+            invoice.setCheckinDate(checkinDate);
+            invoice.setCheckoutDate(checkoutDate);
+
+            // 7. Lưu hóa đơn vào database
+            if (!invoiceDAO.addInvoice(invoice)) {
+                return new Payload(Payload.Action.FAILURE, null, "Lỗi khi tạo hóa đơn");
+            }
+
+            // 8. Lưu khách vào lịch sử
+            if (!tenantHistoryDAO.addToHistory(tenant)) {
+                return new Payload(Payload.Action.FAILURE, null, "Lỗi khi lưu lịch sử");
+            }
+
+            // 9. Xóa khách khỏi bảng Tenants
+            if (!tenantDAO.deleteTenant(tenant.getId())) {
+                return new Payload(Payload.Action.FAILURE, null, "Lỗi khi xóa khách");
+            }
+
+            // 10. Cập nhật trạng thái phòng thành AVAILABLE
+            room.setStatus("AVAILABLE");
+            if (!roomDAO.updateRoom(room)) {
+                return new Payload(Payload.Action.FAILURE, null, "Lỗi khi cập nhật phòng");
+            }
+
+            // 11. Trả về thông tin hóa đơn
+            return new Payload(Payload.Action.SUCCESS, invoice,
+                    "Trả phòng thành công!\n" +
+                            "Số ngày thuê: " + rentalDays + " ngày\n" +
+                            "Tiền phòng: " + String.format("%,.0f VNĐ", roomCost) + "\n" +
+                            "Tiền điện: " + String.format("%,.0f VNĐ", elecCost) + "\n" +
+                            "Tiền nước: " + String.format("%,.0f VNĐ", waterCost) + "\n" +
+                            "Tiền internet: " + String.format("%,.0f VNĐ", internetPrice) + "\n" +
+                            "TỔNG CỘNG: " + String.format("%,.0f VNĐ", totalAmount));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Payload(Payload.Action.FAILURE, null, "Lỗi: " + e.getMessage());
         }
     }
 }

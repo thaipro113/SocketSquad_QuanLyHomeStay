@@ -16,12 +16,17 @@ public class Invoice implements Serializable {
     private double totalAmount;
     private String status; // PAID, UNPAID
     private Date createdAt;
+    private double roomPrice;
+    private int rentalDays;
+    private Date checkinDate;
+    private Date checkoutDate;
 
     public Invoice() {
     }
 
-    public Invoice(int id, int roomId, int month, int year, int electricityUsage, int waterUsage, double internetFee,
-            double totalAmount, String status, Date createdAt) {
+    public Invoice(int id, int roomId, int month, int year, int electricityUsage, int waterUsage,
+                   double internetFee, double totalAmount, String status, Date createdAt,
+                   double roomPrice, int rentalDays, Date checkinDate, Date checkoutDate) {
         this.id = id;
         this.roomId = roomId;
         this.month = month;
@@ -32,6 +37,10 @@ public class Invoice implements Serializable {
         this.totalAmount = totalAmount;
         this.status = status;
         this.createdAt = createdAt;
+        this.roomPrice = roomPrice;
+        this.rentalDays = rentalDays;
+        this.checkinDate = checkinDate;
+        this.checkoutDate = checkoutDate;
     }
 
     public int getId() {
@@ -112,5 +121,36 @@ public class Invoice implements Serializable {
 
     public void setCreatedAt(Date createdAt) {
         this.createdAt = createdAt;
+    }
+    public double getRoomPrice() {
+        return roomPrice;
+    }
+
+    public void setRoomPrice(double roomPrice) {
+        this.roomPrice = roomPrice;
+    }
+
+    public int getRentalDays() {
+        return rentalDays;
+    }
+
+    public void setRentalDays(int rentalDays) {
+        this.rentalDays = rentalDays;
+    }
+
+    public Date getCheckinDate() {
+        return checkinDate;
+    }
+
+    public void setCheckinDate(Date checkinDate) {
+        this.checkinDate = checkinDate;
+    }
+
+    public Date getCheckoutDate() {
+        return checkoutDate;
+    }
+
+    public void setCheckoutDate(Date checkoutDate) {
+        this.checkoutDate = checkoutDate;
     }
 }

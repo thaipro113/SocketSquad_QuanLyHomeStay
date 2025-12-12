@@ -1,6 +1,7 @@
 package common.models;
 
 import java.io.Serializable;
+import java.util.Date;
 
 public class Tenant implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -11,19 +12,22 @@ public class Tenant implements Serializable {
     private String phone;
     private int roomId;
     private String contractPath;
+    private Date checkinDate;
 
     public Tenant() {
     }
 
-    public Tenant(int id, String name, String idCard, String phone, int roomId, String contractPath) {
+    public Tenant(int id, String name, String idCard, String phone, int roomId, String contractPath, Date checkinDate) {
         this.id = id;
         this.name = name;
         this.idCard = idCard;
         this.phone = phone;
         this.roomId = roomId;
         this.contractPath = contractPath;
+        this.checkinDate = checkinDate;
     }
 
+    // Getters and Setters
     public int getId() {
         return id;
     }
@@ -70,5 +74,13 @@ public class Tenant implements Serializable {
 
     public void setContractPath(String contractPath) {
         this.contractPath = contractPath;
+    }
+
+    public Date getCheckinDate() {
+        return checkinDate;
+    }
+
+    public void setCheckinDate(Date checkinDate) {
+        this.checkinDate = checkinDate;
     }
 }

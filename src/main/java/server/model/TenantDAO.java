@@ -13,8 +13,8 @@ public class TenantDAO {
         List<Tenant> tenants = new ArrayList<>();
         String query = "SELECT * FROM Tenants";
         try (Connection conn = DBConnection.getConnection();
-                Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
 
             while (rs.next()) {
                 tenants.add(new Tenant(
@@ -23,7 +23,8 @@ public class TenantDAO {
                         rs.getString("id_card"),
                         rs.getString("phone"),
                         rs.getInt("room_id"),
-                        rs.getString("contract_path")));
+                        rs.getString("contract_path"),
+                        rs.getTimestamp("checkin_date")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -32,9 +33,9 @@ public class TenantDAO {
     }
 
     public boolean addTenant(Tenant tenant) {
-        String query = "INSERT INTO Tenants (name, id_card, phone, room_id, contract_path) VALUES (?, ?, ?, ?, ?)";
+        String query = "INSERT INTO Tenants (name, id_card, phone, room_id, contract_path, checkin_date) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(query)) {
+             PreparedStatement stmt = conn.prepareStatement(query)) {
 
             stmt.setString(1, tenant.getName());
             stmt.setString(2, tenant.getIdCard());
@@ -45,6 +46,13 @@ public class TenantDAO {
                 stmt.setNull(4, Types.INTEGER);
             }
             stmt.setString(5, tenant.getContractPath());
+
+            // ✅ Set checkin_date - nếu null thì dùng thời gian hiện tại
+            if (tenant.getCheckinDate() != null) {
+                stmt.setTimestamp(6, new Timestamp(tenant.getCheckinDate().getTime()));
+            } else {
+                stmt.setTimestamp(6, new Timestamp(System.currentTimeMillis()));
+            }
 
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -54,9 +62,9 @@ public class TenantDAO {
     }
 
     public boolean updateTenant(Tenant tenant) {
-        String query = "UPDATE Tenants SET name = ?, id_card = ?, phone = ?, room_id = ?, contract_path = ? WHERE id = ?";
+        String query = "UPDATE Tenants SET name = ?, id_card = ?, phone = ?, room_id = ?, contract_path = ?, checkin_date = ? WHERE id = ?";
         try (Connection conn = DBConnection.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(query)) {
+             PreparedStatement stmt = conn.prepareStatement(query)) {
 
             stmt.setString(1, tenant.getName());
             stmt.setString(2, tenant.getIdCard());
@@ -67,7 +75,14 @@ public class TenantDAO {
                 stmt.setNull(4, Types.INTEGER);
             }
             stmt.setString(5, tenant.getContractPath());
-            stmt.setInt(6, tenant.getId());
+
+            if (tenant.getCheckinDate() != null) {
+                stmt.setTimestamp(6, new Timestamp(tenant.getCheckinDate().getTime()));
+            } else {
+                stmt.setNull(6, Types.TIMESTAMP);
+            }
+
+            stmt.setInt(7, tenant.getId());
 
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -79,13 +94,37 @@ public class TenantDAO {
     public boolean deleteTenant(int id) {
         String query = "DELETE FROM Tenants WHERE id = ?";
         try (Connection conn = DBConnection.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(query)) {
-
+             PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
+    }
+
+    // Lấy thông tin tenant theo room_id
+    public Tenant getTenantByRoomId(int roomId) {
+        String query = "SELECT * FROM Tenants WHERE room_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setInt(1, roomId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return new Tenant(
+                            rs.getInt("id"),
+                            rs.getString("name"),
+                            rs.getString("id_card"),
+                            rs.getString("phone"),
+                            rs.getInt("room_id"),
+                            rs.getString("contract_path"),
+                            rs.getTimestamp("checkin_date"));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
