@@ -12,18 +12,21 @@ public class TenantHistory implements Serializable {
     private String phone;
     private int roomId;
     private String contractPath;
+    private Timestamp checkInDate;
     private Timestamp checkoutDate;
 
     public TenantHistory() {
     }
 
-    public TenantHistory(int id, String name, String idCard, String phone, int roomId, String contractPath, Timestamp checkoutDate) {
+    public TenantHistory(int id, String name, String idCard, String phone, int roomId, String contractPath,
+            Timestamp checkInDate, Timestamp checkoutDate) {
         this.id = id;
         this.name = name;
         this.idCard = idCard;
         this.phone = phone;
         this.roomId = roomId;
         this.contractPath = contractPath;
+        this.checkInDate = checkInDate;
         this.checkoutDate = checkoutDate;
     }
 
@@ -75,6 +78,14 @@ public class TenantHistory implements Serializable {
         this.contractPath = contractPath;
     }
 
+    public Timestamp getCheckInDate() {
+        return checkInDate;
+    }
+
+    public void setCheckInDate(Timestamp checkInDate) {
+        this.checkInDate = checkInDate;
+    }
+
     public Timestamp getCheckoutDate() {
         return checkoutDate;
     }
@@ -83,4 +94,3 @@ public class TenantHistory implements Serializable {
         this.checkoutDate = checkoutDate;
     }
 }
-

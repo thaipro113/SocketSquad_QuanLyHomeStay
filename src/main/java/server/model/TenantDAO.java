@@ -58,7 +58,7 @@ public class TenantDAO {
     }
 
     public boolean updateTenant(Tenant tenant) {
-        String query = "UPDATE Tenants SET name = ?, id_card = ?, phone = ?, room_id = ?, contract_path = ? WHERE id = ?";
+        String query = "UPDATE Tenants SET name = ?, id_card = ?, phone = ?, room_id = ?, contract_path = ?, check_in_date = ? WHERE id = ?";
         try (Connection conn = DBConnection.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(query)) {
 
@@ -71,7 +71,9 @@ public class TenantDAO {
                 stmt.setNull(4, Types.INTEGER);
             }
             stmt.setString(5, tenant.getContractPath());
-            stmt.setInt(6, tenant.getId());
+            stmt.setTimestamp(6,
+                    tenant.getCheckInDate() != null ? new java.sql.Timestamp(tenant.getCheckInDate().getTime()) : null);
+            stmt.setInt(7, tenant.getId());
 
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {

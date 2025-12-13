@@ -27,7 +27,9 @@ public class InvoiceDAO {
                         rs.getDouble("internet_fee"),
                         rs.getDouble("total_amount"),
                         rs.getString("status"),
-                        rs.getTimestamp("created_at")));
+                        rs.getTimestamp("created_at"),
+                        rs.getTimestamp("start_date"),
+                        rs.getTimestamp("end_date")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -36,7 +38,7 @@ public class InvoiceDAO {
     }
 
     public boolean addInvoice(Invoice invoice) {
-        String query = "INSERT INTO Invoices (room_id, month, year, electricity_usage, water_usage, internet_fee, total_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String query = "INSERT INTO Invoices (room_id, month, year, electricity_usage, water_usage, internet_fee, total_amount, status, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(query)) {
 
@@ -48,6 +50,10 @@ public class InvoiceDAO {
             stmt.setDouble(6, invoice.getInternetFee());
             stmt.setDouble(7, invoice.getTotalAmount());
             stmt.setString(8, invoice.getStatus());
+            stmt.setTimestamp(9,
+                    invoice.getStartDate() != null ? new java.sql.Timestamp(invoice.getStartDate().getTime()) : null);
+            stmt.setTimestamp(10,
+                    invoice.getEndDate() != null ? new java.sql.Timestamp(invoice.getEndDate().getTime()) : null);
 
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {

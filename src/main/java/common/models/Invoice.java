@@ -16,12 +16,14 @@ public class Invoice implements Serializable {
     private double totalAmount;
     private String status; // PAID, UNPAID
     private Date createdAt;
+    private Date startDate;
+    private Date endDate;
 
     public Invoice() {
     }
 
     public Invoice(int id, int roomId, int month, int year, int electricityUsage, int waterUsage, double internetFee,
-            double totalAmount, String status, Date createdAt) {
+            double totalAmount, String status, Date createdAt, Date startDate, Date endDate) {
         this.id = id;
         this.roomId = roomId;
         this.month = month;
@@ -32,6 +34,15 @@ public class Invoice implements Serializable {
         this.totalAmount = totalAmount;
         this.status = status;
         this.createdAt = createdAt;
+        this.startDate = startDate;
+        this.endDate = endDate;
+    }
+
+    // Constructor for backward compatibility
+    public Invoice(int id, int roomId, int month, int year, int electricityUsage, int waterUsage, double internetFee,
+            double totalAmount, String status, Date createdAt) {
+        this(id, roomId, month, year, electricityUsage, waterUsage, internetFee, totalAmount, status, createdAt, null,
+                null);
     }
 
     public int getId() {
@@ -112,5 +123,21 @@ public class Invoice implements Serializable {
 
     public void setCreatedAt(Date createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Date getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(Date startDate) {
+        this.startDate = startDate;
+    }
+
+    public Date getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(Date endDate) {
+        this.endDate = endDate;
     }
 }

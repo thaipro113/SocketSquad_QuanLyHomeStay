@@ -24,6 +24,7 @@ public class MainDashboard extends JFrame {
     private JTable roomTable;
     private DefaultTableModel roomModel;
     private JButton btnCheckout;
+    private List<Invoice> displayedInvoices;
     private JButton btnCheckin;
     private JLabel lblAvailableCount;
     private JLabel lblOccupiedCount;
@@ -316,7 +317,7 @@ public class MainDashboard extends JFrame {
         toolBar.addSeparator(new Dimension(10, 0));
         toolBar.add(btnDelete);
 
-        String[] columns = { "ID", "ID Phòng", "Tháng/Năm", "Tổng Tiền", "Trạng Thái" };
+        String[] columns = { "ID", "ID Phòng", "Tháng/Năm", "Tổng Tiền", "Trạng Thái", "Chi tiết" };
         invoiceModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -325,6 +326,76 @@ public class MainDashboard extends JFrame {
         };
         invoiceTable = new JTable(invoiceModel);
         styleTable(invoiceTable);
+
+        // Add MouseListener for "Xem chi tiết" (Column 5)
+        invoiceTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                int row = invoiceTable.rowAtPoint(evt.getPoint());
+                int col = invoiceTable.columnAtPoint(evt.getPoint());
+                if (row >= 0 && col == 5) { // Column index 5 is "Chi tiết"
+                    if (displayedInvoices != null && row < displayedInvoices.size()) {
+                        // Double check ID to match
+                        int id = (int) invoiceTable.getValueAt(row, 0);
+                        Invoice selected = null;
+                        for (Invoice inv : displayedInvoices) {
+                            if (inv.getId() == id) {
+                                selected = inv;
+                                break;
+                            }
+                        }
+
+                        if (selected != null) {
+                            // Fetch prices to estimate costs
+                            double elecPrice = 3500.0;
+                            double waterPrice = 15000.0;
+                            try {
+                                java.util.Map<String, Double> prices = controller.getServices();
+                                if (prices != null) {
+                                    elecPrice = prices.getOrDefault("Electricity", 3500.0);
+                                    waterPrice = prices.getOrDefault("Water", 15000.0);
+                                }
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+
+                            double elecCost = selected.getElectricityUsage() * elecPrice;
+                            double waterCost = selected.getWaterUsage() * waterPrice;
+                            // Room Cost = Total - (Elec + Water + Internet)
+                            double roomCost = selected.getTotalAmount() - elecCost - waterCost
+                                    - selected.getInternetFee();
+
+                            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+                            String startDateStr = selected.getStartDate() != null ? sdf.format(selected.getStartDate())
+                                    : "N/A";
+                            String endDateStr = selected.getEndDate() != null ? sdf.format(selected.getEndDate())
+                                    : "N/A";
+
+                            String msg = String.format(
+                                    "Chi Tiết Hóa Đơn #%d\n--------------------\n" +
+                                            "Phòng ID: %d\n" +
+                                            "Tháng/Năm: %d/%d\n" +
+                                            "Ngày Vào: %s\n" +
+                                            "Ngày Ra: %s\n\n" +
+                                            "Tiền Phòng: %,.0f VNĐ\n" +
+                                            "Điện (%d kWh): %,.0f VNĐ\n" +
+                                            "Nước (%d m3): %,.0f VNĐ\n" +
+                                            "Internet: %,.0f VNĐ\n\n" +
+                                            "Tổng Tiền: %,.0f VNĐ",
+                                    selected.getId(), selected.getRoomId(), selected.getMonth(), selected.getYear(),
+                                    startDateStr, endDateStr,
+                                    roomCost,
+                                    selected.getElectricityUsage(), elecCost,
+                                    selected.getWaterUsage(), waterCost,
+                                    selected.getInternetFee(),
+                                    selected.getTotalAmount());
+                            JOptionPane.showMessageDialog(MainDashboard.this, msg, "Chi Tiết Hóa Đơn",
+                                    JOptionPane.INFORMATION_MESSAGE);
+                        }
+                    }
+                }
+            }
+        });
 
         panel.add(toolBar, BorderLayout.NORTH);
         panel.add(new JScrollPane(invoiceTable), BorderLayout.CENTER);
@@ -348,7 +419,7 @@ public class MainDashboard extends JFrame {
 
         toolBar.add(btnRefresh);
 
-        String[] columns = { "ID", "Họ Tên", "CMND/CCCD", "SĐT", "ID Phòng", "Ngày Trả Phòng" };
+        String[] columns = { "ID", "Họ Tên", "CMND/CCCD", "SĐT", "ID Phòng", "Ngày Nhận Phòng", "Ngày Trả Phòng" };
         historyModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -498,7 +569,7 @@ public class MainDashboard extends JFrame {
                         r.getId(),
                         r.getName(),
                         displayStatus,
-                        String.format("%,.0f VNĐ", r.getPrice()),
+                        String.format("%,.0f VNĐ/Ngày", r.getPrice()),
                         imageIcon
                 });
             }
@@ -553,10 +624,10 @@ public class MainDashboard extends JFrame {
     }
 
     private void loadInvoices() {
-        List<Invoice> invoices = controller.getInvoices();
+        displayedInvoices = controller.getInvoices();
         invoiceModel.setRowCount(0);
-        if (invoices != null) {
-            for (Invoice i : invoices) {
+        if (displayedInvoices != null) {
+            for (Invoice i : displayedInvoices) {
                 String displayStatus = i.getStatus();
                 if ("PAID".equals(displayStatus)) {
                     displayStatus = "ĐÃ THANH TOÁN";
@@ -569,7 +640,8 @@ public class MainDashboard extends JFrame {
                         i.getRoomId(),
                         i.getMonth() + "/" + i.getYear(),
                         String.format("%,.0f VNĐ", i.getTotalAmount()),
-                        displayStatus
+                        displayStatus,
+                        "Xem chi tiết"
                 });
             }
         }
@@ -581,16 +653,25 @@ public class MainDashboard extends JFrame {
         if (history != null) {
             for (TenantHistory t : history) {
                 String checkoutDateStr = "";
+                String checkInDateStr = "";
+                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+
                 if (t.getCheckoutDate() != null) {
-                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
                     checkoutDateStr = sdf.format(t.getCheckoutDate());
                 }
+                if (t.getCheckInDate() != null) {
+                    checkInDateStr = sdf.format(t.getCheckInDate());
+                } else {
+                    checkInDateStr = "N/A";
+                }
+
                 historyModel.addRow(new Object[] {
                         t.getId(),
                         t.getName(),
                         t.getIdCard(),
                         t.getPhone(),
                         t.getRoomId(),
+                        checkInDateStr,
                         checkoutDateStr
                 });
             }

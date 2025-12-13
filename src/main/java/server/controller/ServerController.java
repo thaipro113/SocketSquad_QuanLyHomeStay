@@ -114,6 +114,17 @@ public class ServerController {
                     costRequest.setInternetFee(internetPrice);
                     costRequest.setTotalAmount(total);
                     costRequest.setStatus("UNPAID");
+                    costRequest.setCreatedAt(new java.util.Date());
+
+                    // Set default dates for manual invoice (First and Last day of month)
+                    java.util.Calendar cal = java.util.Calendar.getInstance();
+                    cal.set(java.util.Calendar.YEAR, costRequest.getYear());
+                    cal.set(java.util.Calendar.MONTH, costRequest.getMonth() - 1);
+                    cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
+                    costRequest.setStartDate(cal.getTime());
+
+                    cal.set(java.util.Calendar.DAY_OF_MONTH, cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH));
+                    costRequest.setEndDate(cal.getTime());
 
                     if (invoiceDAO.addInvoice(costRequest)) {
                         return new Payload(Payload.Action.SUCCESS, costRequest, "Tạo hóa đơn thành công");
@@ -281,6 +292,10 @@ public class ServerController {
                     newInvoice.setStatus("PAID");
                     newInvoice.setCreatedAt(now);
 
+                    // Add dates to invoice
+                    newInvoice.setStartDate(checkIn);
+                    newInvoice.setEndDate(now);
+
                     if (!invoiceDAO.addInvoice(newInvoice)) {
                         return new Payload(Payload.Action.FAILURE, null, "Lỗi khi tạo hóa đơn");
                     }
@@ -343,6 +358,15 @@ public class ServerController {
                     // Cập nhật trạng thái phòng thành OCCUPIED
                     roomToCheckin.setStatus("OCCUPIED");
                     if (roomDAO.updateRoom(roomToCheckin)) {
+                        // Update tenant check-in date to NOW
+                        List<Tenant> tenantsList = tenantDAO.getAllTenants();
+                        for (Tenant t : tenantsList) {
+                            if (t.getRoomId() == checkinRoomId) {
+                                t.setCheckInDate(new java.sql.Timestamp(System.currentTimeMillis()));
+                                tenantDAO.updateTenant(t);
+                                break;
+                            }
+                        }
                         return new Payload(Payload.Action.SUCCESS, null, "Nhận phòng thành công");
                     } else {
                         return new Payload(Payload.Action.FAILURE, null, "Cập nhật trạng thái phòng thất bại");

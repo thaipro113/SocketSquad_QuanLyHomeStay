@@ -56,6 +56,43 @@ public class MigrationUtil {
                 }
             }
 
+            // 3. Add check_in_date to TenantHistory
+            try {
+                String sql = "ALTER TABLE TenantHistory ADD check_in_date DATETIME";
+                stmt.executeUpdate(sql);
+                System.out.println("Added check_in_date column to TenantHistory.");
+            } catch (SQLException e) {
+                if (e.getMessage().contains("Column names in each table must be unique")
+                        || e.getMessage().contains("Duplicate column name")) {
+                    System.out.println("check_in_date column already exists in TenantHistory.");
+                } else {
+                    e.printStackTrace();
+                }
+            }
+
+            // 4. Add start_date and end_date to Invoices
+            try {
+                String sql = "ALTER TABLE Invoices ADD start_date DATETIME";
+                stmt.executeUpdate(sql);
+                System.out.println("Added start_date column to Invoices.");
+            } catch (SQLException e) {
+                if (e.getMessage().contains("Column names in each table must be unique")
+                        || e.getMessage().contains("Duplicate column name")) {
+                    System.out.println("start_date column already exists in Invoices.");
+                }
+            }
+
+            try {
+                String sql = "ALTER TABLE Invoices ADD end_date DATETIME";
+                stmt.executeUpdate(sql);
+                System.out.println("Added end_date column to Invoices.");
+            } catch (SQLException e) {
+                if (e.getMessage().contains("Column names in each table must be unique")
+                        || e.getMessage().contains("Duplicate column name")) {
+                    System.out.println("end_date column already exists in Invoices.");
+                }
+            }
+
             System.out.println("Migration Completed.");
 
         } catch (SQLException e) {

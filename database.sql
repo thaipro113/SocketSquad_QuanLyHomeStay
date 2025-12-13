@@ -29,6 +29,7 @@ CREATE TABLE Tenants (
     phone VARCHAR(15),
     room_id INT,
     contract_path VARCHAR(255), -- Path to contract file
+    check_in_date DATETIME DEFAULT GETDATE(),
     FOREIGN KEY (room_id) REFERENCES Rooms(id) ON DELETE SET NULL
 );
 
@@ -51,6 +52,8 @@ CREATE TABLE Invoices (
     total_amount DECIMAL(10, 2) NOT NULL,
     status VARCHAR(20) CHECK (status IN ('PAID', 'UNPAID')),
     created_at DATETIME DEFAULT GETDATE(),
+    start_date DATETIME,
+    end_date DATETIME,
     FOREIGN KEY (room_id) REFERENCES Rooms(id)
 );
 
@@ -62,6 +65,7 @@ CREATE TABLE TenantHistory (
     phone VARCHAR(15),
     room_id INT,
     contract_path VARCHAR(255),
+    check_in_date DATETIME,
     checkout_date DATETIME DEFAULT GETDATE(),
     FOREIGN KEY (room_id) REFERENCES Rooms(id) ON DELETE SET NULL
 );

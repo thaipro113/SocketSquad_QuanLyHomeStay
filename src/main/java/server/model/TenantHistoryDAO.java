@@ -7,11 +7,12 @@ import server.database.DBConnection;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+
 //update
 public class TenantHistoryDAO {
 
     public boolean addToHistory(Tenant tenant) {
-        String query = "INSERT INTO TenantHistory (name, id_card, phone, room_id, contract_path, checkout_date) VALUES (?, ?, ?, ?, ?, GETDATE())";
+        String query = "INSERT INTO TenantHistory (name, id_card, phone, room_id, contract_path, check_in_date, checkout_date) VALUES (?, ?, ?, ?, ?, ?, GETDATE())";
         try (Connection conn = DBConnection.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(query)) {
 
@@ -24,6 +25,8 @@ public class TenantHistoryDAO {
                 stmt.setNull(4, Types.INTEGER);
             }
             stmt.setString(5, tenant.getContractPath());
+            stmt.setTimestamp(6,
+                    tenant.getCheckInDate() != null ? new java.sql.Timestamp(tenant.getCheckInDate().getTime()) : null);
 
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -47,6 +50,7 @@ public class TenantHistoryDAO {
                         rs.getString("phone"),
                         rs.getInt("room_id"),
                         rs.getString("contract_path"),
+                        rs.getTimestamp("check_in_date"),
                         rs.getTimestamp("checkout_date")));
             }
         } catch (SQLException e) {
@@ -55,4 +59,3 @@ public class TenantHistoryDAO {
         return history;
     }
 }
-
